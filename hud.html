@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;       /* la finestra è trasparente: niente sfondo */
+      overflow: hidden;
+      font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+      -webkit-user-select: none;
+      cursor: default;
+    }
+    /* La pillola è ancorata a destra: resta nell'angolo anche quando i
+       controlli audio sono nascosti e la sua larghezza cambia. */
+    body {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      height: 100vh;
+    }
+    #pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-sizing: border-box;
+      height: 100%;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(28, 28, 30, 0.82);
+      backdrop-filter: blur(8px);
+      color: #f2f2f7;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+      transition: background 0.25s ease;
+    }
+    #dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      background: #34c759;            /* default verde */
+      transition: background 0.25s ease, box-shadow 0.25s ease;
+    }
+    #txt { white-space: nowrap; }
+    #pct { opacity: 0.7; }
+
+    /* Stati del semaforo, applicati al <body> via classe */
+    body.green  #dot { background: #34c759; }
+    body.yellow #dot { background: #ffd60a; }
+    body.red    #dot { background: #ff453a; box-shadow: 0 0 8px rgba(255, 69, 58, 0.9); }
+    body.red    #pill { background: rgba(90, 20, 18, 0.9); }
+
+    /* --- controlli audio: visibili solo quando c'è una playlist --- */
+    #audio { display: none; align-items: center; gap: 8px; }
+    #audio.on { display: inline-flex; }
+    .sep {
+      width: 1px; height: 18px; flex: 0 0 auto;
+      background: rgba(255, 255, 255, 0.18);
+    }
+    #pp {
+      flex: 0 0 auto;
+      width: 22px; height: 22px;
+      border: none; border-radius: 50%;
+      background: rgba(255, 255, 255, 0.14);
+      color: #f2f2f7;
+      font-size: 11px; line-height: 22px;
+      cursor: pointer; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #pp:hover { background: rgba(255, 255, 255, 0.28); }
+    #vol {
+      -webkit-appearance: none; appearance: none;
+      width: 70px; height: 4px; flex: 0 0 auto;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.25);
+      cursor: pointer;
+    }
+    #vol::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #f2f2f7; cursor: pointer;
+    }
+  </style>
+</head>
+<body class="green">
+  <div id="pill">
+    <span id="dot"></span>
+    <span id="txt">— MB</span>
+    <span id="pct"></span>
+
+    <span id="audio">
+      <span class="sep"></span>
+      <button id="pp" title="Play / Pausa">▶</button>
+      <input id="vol" type="range" min="0" max="100" value="70" title="Volume" />
+    </span>
+  </div>
+
+  <!-- Player audio della playlist chiptune (controllato qui e dal menu) -->
+  <audio id="player"></audio>
+
+  <script>
+    const txt = document.getElementById('txt');
+    const pct = document.getElementById('pct');
+
+    window.hud.onMem((d) => {
+      // d = { mb, capMb, pct, level }
+      document.body.className = d.level;       // 'green' | 'yellow' | 'red'
+      txt.textContent = `${d.mb} MB`;
+      pct.textContent = `${Math.round(d.pct * 100)}%`;
+    });
+
+    // --- playlist chiptune -------------------------------------------------
+    const player = document.getElementById('player');
+    const audioUi = document.getElementById('audio');
+    const pp = document.getElementById('pp');
+    const vol = document.getElementById('vol');
+    let tracks = [];
+    let idx = 0;
+
+    player.volume = 0.7;
+
+    function loadTrack(i) {
+      if (!tracks.length) return;
+      idx = ((i % tracks.length) + tracks.length) % tracks.length;
+      player.src = tracks[idx].url || tracks[idx];
+    }
+    function play() {
+      if (!tracks.length) return;
+      if (!player.src) loadTrack(0);
+      player.play().catch(() => {});
+    }
+    function next() {
+      if (!tracks.length) return;
+      loadTrack(idx + 1);
+      player.play().catch(() => {});
+    }
+    // Avanza da solo alla fine di ogni brano (playlist a ciclo continuo).
+    player.addEventListener('ended', next);
+
+    // Mostra i controlli appena c'è almeno un brano disponibile.
+    function revealControls() {
+      if (tracks.length) audioUi.classList.add('on');
+    }
+
+    window.hud.onPlaylist((msg) => {
+      if (Array.isArray(msg.tracks)) tracks = msg.tracks;
+      revealControls();
+      switch (msg.action) {
+        case 'play':   play(); break;
+        case 'pause':  player.pause(); break;
+        case 'toggle': player.paused ? play() : player.pause(); break;
+        case 'next':   next(); break;
+      }
+    });
+
+    // --- controlli locali (play/pausa + volume) ----------------------------
+    pp.addEventListener('click', () => { player.paused ? play() : player.pause(); });
+    vol.addEventListener('input', () => { player.volume = vol.value / 100; });
+
+    // Tiene l'icona allineata allo stato reale (anche se cambia dal menu).
+    player.addEventListener('play',  () => { pp.textContent = '❚❚'; });
+    player.addEventListener('pause', () => { pp.textContent = '▶'; });
+
+    // L'HUD è click-through di default e NON diventa più interattivo al
+    // passaggio del mouse (bloccava i clic sui componenti dell'IDE sottostanti).
+    // L'interattività si attiva ora solo su richiesta, dal menu "HUD".
+  </script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradiente verde ServiceNow per lo sfondo squircle -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#62D84E"/>
+      <stop offset="0.55" stop-color="#2FB86B"/>
+      <stop offset="1" stop-color="#178A55"/>
+    </linearGradient>
+    <!-- Leggero highlight in alto per dare profondità -->
+    <linearGradient id="sheen" x1="512" y1="0" x2="512" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <!-- Glow degli occhi -->
+    <radialGradient id="eye" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#9CFFC0"/>
+      <stop offset="0.45" stop-color="#43E07E"/>
+      <stop offset="1" stop-color="#16A85A"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Squircle di sfondo -->
+  <rect x="0" y="0" width="1024" height="1024" rx="232" ry="232" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1024" height="1024" rx="232" ry="232" fill="url(#sheen)"/>
+
+  <!-- Antenna -->
+  <rect x="497" y="232" width="30" height="108" rx="15" fill="#F4FBF6"/>
+  <circle cx="512" cy="222" r="40" fill="#F4FBF6"/>
+  <circle cx="512" cy="222" r="18" fill="url(#eye)"/>
+
+  <!-- Orecchie / connettori laterali -->
+  <rect x="252" y="470" width="40" height="150" rx="20" fill="#E4F3E9"/>
+  <rect x="732" y="470" width="40" height="150" rx="20" fill="#E4F3E9"/>
+
+  <!-- Testa -->
+  <rect x="288" y="332" width="448" height="426" rx="104" fill="#F4FBF6"/>
+  <!-- Ombra interna sottile in basso per volume -->
+  <rect x="288" y="600" width="448" height="158" rx="104" fill="#000000" opacity="0.04"/>
+
+  <!-- Visore scuro -->
+  <rect x="346" y="424" width="332" height="212" rx="80" fill="#0E3340"/>
+
+  <!-- Occhi luminosi -->
+  <circle cx="446" cy="530" r="46" fill="url(#eye)"/>
+  <circle cx="578" cy="530" r="46" fill="url(#eye)"/>
+
+  <!-- Bocca / griglia microfono -->
+  <g fill="#CFE6D7">
+    <rect x="452" y="690" width="120" height="14" rx="7"/>
+  </g>
+</svg>

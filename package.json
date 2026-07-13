@@ -1,0 +1,44 @@
+{
+  "name": "servicenow-ide-ba",
+  "version": "1.0.0",
+  "description": "Wrapper Electron per l'IDE ServiceNow con heap V8 maggiorato",
+  "main": "main.js",
+  "author": "Francesco Di Maggio",
+  "license": "MIT",
+  "scripts": {
+    "start": "env -u ELECTRON_RUN_AS_NODE electron .",
+    "dist": "env -u ELECTRON_RUN_AS_NODE electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^42.4.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.fdm.servicenow-ide-ba",
+    "productName": "ServiceNow IDE",
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.developer-tools",
+      "icon": "assets/icon.icns"
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload-hud.js",
+      "hud.html",
+      "preload-settings.js",
+      "settings.html",
+      "preload-launcher.js",
+      "launcher.html",
+      "assets/login.mp3",
+      "assets/playlist/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "assets/login.mp3",
+      "assets/playlist/**/*"
+    ]
+  }
+}

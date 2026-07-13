@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 22px 24px;
+      font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+      font-size: 13px;
+      color: #1d1d1f;
+      background: #f5f5f7;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { color: #f2f2f7; background: #1f1f22; }
+      input { background: #2c2c2e; color: #f2f2f7; border-color: #444 !important; }
+      .hint { color: #9a9aa0; }
+    }
+    h1 { font-size: 15px; margin: 0 0 18px; }
+    label { display: block; font-weight: 600; margin: 14px 0 5px; }
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #c6c6c8;
+      border-radius: 7px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .row { display: flex; gap: 14px; }
+    .row > div { flex: 1; }
+    .hint { font-size: 11px; color: #6e6e73; margin-top: 4px; line-height: 1.35; }
+    #err { color: #ff453a; font-size: 12px; min-height: 16px; margin-top: 12px; }
+    .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+    button {
+      padding: 7px 16px; border-radius: 7px; font-size: 13px; font-family: inherit;
+      border: 1px solid transparent; cursor: pointer;
+    }
+    #cancel { background: transparent; border-color: #c6c6c8; }
+    #save { background: #2FB86B; color: #fff; font-weight: 600; }
+    button:disabled { opacity: 0.5; cursor: default; }
+  </style>
+</head>
+<body>
+  <h1>Impostazioni</h1>
+
+  <label for="url">URL istanza</label>
+  <input id="url" type="text" placeholder="https://....service-now.com/..." />
+  <div class="hint">L'indirizzo che l'app carica all'avvio. Si applica al ricaricamento.</div>
+
+  <label for="ram">Limite RAM (MB)</label>
+  <input id="ram" type="number" min="1024" max="14336" step="256" />
+  <div class="hint">Tetto heap V8. Hai 16 GB di RAM: max consigliato 12288. <b>Richiede riavvio dell'app.</b></div>
+
+  <div class="row">
+    <div>
+      <label for="warn">Soglia gialla (%)</label>
+      <input id="warn" type="number" min="5" max="95" step="5" />
+    </div>
+    <div>
+      <label for="alert">Soglia rossa (%)</label>
+      <input id="alert" type="number" min="10" max="98" step="5" />
+    </div>
+  </div>
+  <div class="hint">Quando il badge passa a giallo/rosso. Si applicano subito.</div>
+
+  <div id="err"></div>
+
+  <div class="actions">
+    <button id="cancel">Annulla</button>
+    <button id="save">Salva</button>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const err = $('err');
+
+    async function load() {
+      const c = await window.settingsApi.get();
+      $('url').value = c.url;
+      $('ram').value = c.maxOldSpaceSize;
+      $('warn').value = Math.round(c.warnPct * 100);
+      $('alert').value = Math.round(c.alertPct * 100);
+    }
+    load();
+
+    $('cancel').addEventListener('click', () => window.settingsApi.close());
+
+    $('save').addEventListener('click', async () => {
+      err.textContent = '';
+      const url = $('url').value.trim();
+      const ram = parseInt($('ram').value, 10);
+      const warn = parseInt($('warn').value, 10);
+      const alert = parseInt($('alert').value, 10);
+
+      if (!/^https?:\/\//i.test(url)) { err.textContent = 'URL non valido (deve iniziare con http/https).'; return; }
+      if (!(ram >= 1024 && ram <= 14336)) { err.textContent = 'Limite RAM fuori range (1024–14336).'; return; }
+      if (!(warn >= 5 && alert <= 98 && warn < alert)) { err.textContent = 'Soglie non valide: la gialla deve essere minore della rossa.'; return; }
+
+      $('save').disabled = true;
+      const res = await window.settingsApi.save({
+        url, maxOldSpaceSize: ram, warnPct: warn / 100, alertPct: alert / 100
+      });
+      $('save').disabled = false;
+
+      if (!res.ok) { err.textContent = res.error || 'Errore nel salvataggio.'; return; }
+
+      if (res.restartNeeded) {
+        const r = confirm('Salvato.\n\nIl nuovo limite RAM richiede il riavvio dell\'app. Riavviare ora?');
+        if (r) { window.settingsApi.relaunch(); return; }
+      }
+      window.settingsApi.close();
+    });
+  </script>
+</body>
+</html>
