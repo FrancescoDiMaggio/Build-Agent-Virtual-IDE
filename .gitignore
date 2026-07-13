@@ -1,1 +1,6 @@
 /.DS_Store
+/dist
+/node_modules
+*.dmg
+*.exe
+*.AppImage
