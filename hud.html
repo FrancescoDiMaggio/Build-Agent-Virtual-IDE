@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
+<html>
 <head>
   <meta charset="utf-8" />
   <style>
@@ -93,14 +93,15 @@
 
     <span id="audio">
       <span class="sep"></span>
-      <button id="pp" title="Play / Pausa">▶</button>
-      <input id="vol" type="range" min="0" max="100" value="70" title="Volume" />
+      <button id="pp" data-i18n-title="hud.playPause">▶</button>
+      <input id="vol" type="range" min="0" max="100" value="70" data-i18n-title="hud.volume" />
     </span>
   </div>
 
   <!-- Player audio della playlist chiptune (controllato qui e dal menu) -->
   <audio id="player"></audio>
 
+  <script src="i18n-renderer.js"></script>
   <script>
     const txt = document.getElementById('txt');
     const pct = document.getElementById('pct');

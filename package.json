@@ -26,6 +26,9 @@
     },
     "files": [
       "main.js",
+      "i18n.js",
+      "i18n/*.json",
+      "i18n-renderer.js",
       "preload-hud.js",
       "hud.html",
       "preload-settings.js",

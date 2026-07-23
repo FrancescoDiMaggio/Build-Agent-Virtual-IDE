@@ -4,6 +4,13 @@
 // L'unica cosa esposta è un callback per ricevere gli aggiornamenti di memoria.
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Catalogo delle stringhe per la pagina (lo consuma i18n-renderer.js).
+// Sincrono perché deve essere disponibile prima del primo paint.
+contextBridge.exposeInMainWorld('i18nBridge', {
+  initial: ipcRenderer.sendSync('i18n:sync'),
+  onChange: (callback) => ipcRenderer.on('i18n:changed', (_event, payload) => callback(payload))
+});
+
 contextBridge.exposeInMainWorld('hud', {
   onMem: (callback) => ipcRenderer.on('mem', (_event, data) => callback(data)),
   // Comandi per la playlist chiptune ospitata nell'HUD.

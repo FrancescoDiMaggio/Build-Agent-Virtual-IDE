@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
+<html>
 <head>
   <meta charset="utf-8" />
   <style>
@@ -15,12 +15,12 @@
     }
     @media (prefers-color-scheme: dark) {
       body { color: #f2f2f7; background: #1f1f22; }
-      input { background: #2c2c2e; color: #f2f2f7; border-color: #444 !important; }
+      input, select { background: #2c2c2e; color: #f2f2f7; border-color: #444 !important; }
       .hint { color: #9a9aa0; }
     }
     h1 { font-size: 15px; margin: 0 0 18px; }
     label { display: block; font-weight: 600; margin: 14px 0 5px; }
-    input {
+    input, select {
       width: 100%;
       padding: 8px 10px;
       border: 1px solid #c6c6c8;
@@ -43,38 +43,51 @@
   </style>
 </head>
 <body>
-  <h1>Impostazioni</h1>
+  <h1 data-i18n="settings.heading"></h1>
 
-  <label for="url">URL istanza</label>
+  <label for="lang" data-i18n="settings.language"></label>
+  <select id="lang"></select>
+  <div class="hint" data-i18n="settings.languageHint"></div>
+
+  <label for="url" data-i18n="settings.url"></label>
   <input id="url" type="text" placeholder="https://....service-now.com/..." />
-  <div class="hint">L'indirizzo che l'app carica all'avvio. Si applica al ricaricamento.</div>
+  <div class="hint" data-i18n="settings.urlHint"></div>
 
-  <label for="ram">Limite RAM (MB)</label>
+  <label for="ram" data-i18n="settings.ram"></label>
   <input id="ram" type="number" min="1024" max="14336" step="256" />
-  <div class="hint">Tetto heap V8. Hai 16 GB di RAM: max consigliato 12288. <b>Richiede riavvio dell'app.</b></div>
+  <div class="hint"><span data-i18n="settings.ramHint"></span> <b data-i18n="settings.ramRestart"></b></div>
 
   <div class="row">
     <div>
-      <label for="warn">Soglia gialla (%)</label>
+      <label for="warn" data-i18n="settings.warn"></label>
       <input id="warn" type="number" min="5" max="95" step="5" />
     </div>
     <div>
-      <label for="alert">Soglia rossa (%)</label>
+      <label for="alert" data-i18n="settings.alert"></label>
       <input id="alert" type="number" min="10" max="98" step="5" />
     </div>
   </div>
-  <div class="hint">Quando il badge passa a giallo/rosso. Si applicano subito.</div>
+  <div class="hint" data-i18n="settings.thresholdsHint"></div>
 
   <div id="err"></div>
 
   <div class="actions">
-    <button id="cancel">Annulla</button>
-    <button id="save">Salva</button>
+    <button id="cancel" data-i18n="settings.cancel"></button>
+    <button id="save" data-i18n="settings.save"></button>
   </div>
 
+  <script src="i18n-renderer.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     const err = $('err');
+    const t = window.i18n.t;
+
+    // Chiave dell'errore a schermo: serve a ritradurlo se cambia la lingua.
+    let errKey = '';
+    function showError(key) {
+      errKey = key;
+      err.textContent = key ? t(key) : '';
+    }
 
     async function load() {
       const c = await window.settingsApi.get();
@@ -82,32 +95,56 @@
       $('ram').value = c.maxOldSpaceSize;
       $('warn').value = Math.round(c.warnPct * 100);
       $('alert').value = Math.round(c.alertPct * 100);
+      fillLanguages(c.languages, c.language);
     }
     load();
+
+    // 'auto' + una voce per lingua tradotta, ciascuna nel proprio nome nativo.
+    function fillLanguages(languages, selected) {
+      const auto = new Option(t('settings.languageAuto'), 'auto');
+      $('lang').add(auto);
+      for (const l of languages) $('lang').add(new Option(l.name, l.code));
+      $('lang').value = selected;
+    }
+
+    // La lingua si applica (e si salva) subito, come dice il suggerimento:
+    // così l'utente vede l'effetto senza dover confermare l'intero form.
+    $('lang').addEventListener('change', () => {
+      window.settingsApi.setLanguage($('lang').value);
+    });
+
+    // Il cambio lingua arriva dal main: ritraduce anche l'errore a schermo e
+    // l'etichetta "lingua di sistema", che apply() non può toccare da sola.
+    window.i18n.onChange(() => {
+      $('lang').options[0].text = t('settings.languageAuto');
+      if (errKey) showError(errKey);
+    });
 
     $('cancel').addEventListener('click', () => window.settingsApi.close());
 
     $('save').addEventListener('click', async () => {
-      err.textContent = '';
+      showError('');
       const url = $('url').value.trim();
       const ram = parseInt($('ram').value, 10);
       const warn = parseInt($('warn').value, 10);
       const alert = parseInt($('alert').value, 10);
 
-      if (!/^https?:\/\//i.test(url)) { err.textContent = 'URL non valido (deve iniziare con http/https).'; return; }
-      if (!(ram >= 1024 && ram <= 14336)) { err.textContent = 'Limite RAM fuori range (1024–14336).'; return; }
-      if (!(warn >= 5 && alert <= 98 && warn < alert)) { err.textContent = 'Soglie non valide: la gialla deve essere minore della rossa.'; return; }
+      if (!/^https?:\/\//i.test(url)) { showError('settings.errUrl'); return; }
+      if (!(ram >= 1024 && ram <= 14336)) { showError('settings.errRam'); return; }
+      if (!(warn >= 5 && alert <= 98 && warn < alert)) { showError('settings.errThresholds'); return; }
 
       $('save').disabled = true;
       const res = await window.settingsApi.save({
-        url, maxOldSpaceSize: ram, warnPct: warn / 100, alertPct: alert / 100
+        url, maxOldSpaceSize: ram, warnPct: warn / 100, alertPct: alert / 100,
+        language: $('lang').value
       });
       $('save').disabled = false;
 
-      if (!res.ok) { err.textContent = res.error || 'Errore nel salvataggio.'; return; }
+      // L'errore dal main arriva già tradotto: mostralo così com'è.
+      if (!res.ok) { errKey = ''; err.textContent = res.error || t('settings.errSave'); return; }
 
       if (res.restartNeeded) {
-        const r = confirm('Salvato.\n\nIl nuovo limite RAM richiede il riavvio dell\'app. Riavviare ora?');
+        const r = confirm(t('settings.restartPrompt'));
         if (r) { window.settingsApi.relaunch(); return; }
       }
       window.settingsApi.close();

@@ -45,7 +45,7 @@ Settings are saved to `config.json` in your user data directory (macOS: `~/Libra
 
 Once the IDE is running:
 
-- **File → Settings** (Cmd+,) — Opens a GUI to change URL, memory cap, and thresholds
+- **File → Settings** (Cmd+,) — Opens a GUI to change language, URL, memory cap, and thresholds
   - If you change the memory cap, the app restarts automatically to apply the new V8 flag
   - If you change the URL, the page reloads immediately to the new instance
 - **File → Open configuration (file)** — Opens `config.json` in your default text editor for advanced tweaking
@@ -56,6 +56,26 @@ Once the IDE is running:
 You can only run one instance at a time within this wrapper. To test against multiple ServiceNow instances:
 - Change the URL in Settings and reload
 - Or run multiple copies of the app (macOS: duplicate the `.app` in Applications)
+
+## Language
+
+The interface ships in **English, Italian, French, and Spanish**.
+
+By default the app follows your **system language**, falling back to English if your locale isn't one of the four. You can override it in two places:
+
+- **The launcher** — the dropdown in the top-left corner, before you press START
+- **File → Settings** (Cmd+,) — the **Language** field
+
+Either way the change applies **immediately** — menus, dialogs, the settings window, and the launcher all re-translate in place, with no restart and without interrupting the chiptune playlist. Your choice is saved to `config.json` as `"language"` (`"auto"`, or one of `"en"`, `"it"`, `"fr"`, `"es"`).
+
+### Adding a Language
+
+Translations are plain JSON files in `i18n/`, one per language, keyed identically:
+
+1. Copy `i18n/en.json` to `i18n/<code>.json` and translate the values (leave the `{placeholder}` tokens intact)
+2. Register the language in `i18n.js` — add it to `CATALOGS` and give it a native display name in `LANGUAGE_NAMES`
+
+It then shows up in both language pickers automatically. Any key you leave out falls back to English rather than showing a raw key.
 
 ## Memory Monitor & HUD
 
@@ -142,7 +162,10 @@ npm run dist        # Package as .dmg (macOS)
 - `main.js` — Electron main process, memory monitoring, HUD, audio control, config management
 - `launcher.html` — Keygen landing screen (neon retro theme)
 - `hud.html` — Real-time memory semaphore and audio player
-- `settings.html` — GUI for changing URL, RAM cap, and thresholds
+- `settings.html` — GUI for changing language, URL, RAM cap, and thresholds
+- `i18n.js` — String catalog for the main process: locale resolution and lookup
+- `i18n/*.json` — One translation file per language (`en`, `it`, `fr`, `es`)
+- `i18n-renderer.js` — Translates `data-i18n` markup in the renderer pages
 - `assets/login.mp3` — Cracktro (startup sound)
 - `assets/playlist/` — Chiptune tracks (drop `.mp3` files here)
 
@@ -153,6 +176,7 @@ npm run dist        # Package as .dmg (macOS)
 3. **Crash Recovery** — Automatically reloads the page up to 3 times within 60 seconds; if crashes persist, asks the user
 4. **Cross-Origin Isolation** — Injects COOP/COEP headers so ServiceNow's VS Code Web worker loads in Electron's strict security model
 5. **Autoplay Audio** — Sets `autoplay-policy: no-user-gesture-required` so the cracktro and playlist don't require a user gesture to start
+6. **i18n** — The main process resolves the language at startup (`app.getLocale()`) and hands each renderer its full string catalog over a synchronous IPC call in the preload, before first paint. Preloads run sandboxed and can't `require` local modules, so the DOM translation lives in `i18n-renderer.js`, loaded by the pages themselves
 
 ## License
 

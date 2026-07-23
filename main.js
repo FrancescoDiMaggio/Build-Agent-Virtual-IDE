@@ -4,6 +4,8 @@ const { app, BrowserWindow, shell, Menu, dialog, Notification, ipcMain, session 
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
+const i18n = require('./i18n');
+const t = i18n.t;
 
 // ============================================================
 //  DEFAULT (usati solo per generare config.json al primo avvio)
@@ -22,7 +24,10 @@ const DEFAULTS = {
   warnPct: 0.60,
   alertPct: 0.85,
   // Se true, la playlist chiptune parte automaticamente durante l'uso.
-  playlist: false
+  playlist: false,
+  // Lingua dell'interfaccia: 'auto' segue la lingua di sistema, altrimenti
+  // uno dei codici tradotti (vedi i18n.js: en, it, fr, es).
+  language: 'auto'
 };
 // ============================================================
 
@@ -176,9 +181,11 @@ function startMemoryMonitor() {
                   : pct >= config.warnPct  ? 'yellow'
                   : 'green';
 
-      mainWindow.setTitle(
-        `ServiceNow IDE  —  pagina: ${rendererMB} MB / tetto ${config.maxOldSpaceSize} MB  ·  totale app: ${formatMB(totalKB)} MB`
-      );
+      mainWindow.setTitle(t('window.mainTitle', {
+        mb: rendererMB,
+        cap: config.maxOldSpaceSize,
+        total: formatMB(totalKB)
+      }));
 
       // #3: aggiorna l'HUD col semaforo.
       if (hudWindow && !hudWindow.isDestroyed()) {
@@ -196,9 +203,8 @@ function startMemoryMonitor() {
         alertActive = true;
         if (Notification.isSupported()) {
           new Notification({
-            title: 'Memoria alta nell\'IDE',
-            body: `La pagina usa ${rendererMB} MB (${Math.round(pct * 100)}% del tetto). `
-                + 'Valuta di salvare il lavoro o alzare il limite RAM.'
+            title: t('notify.memory.title'),
+            body: t('notify.memory.body', { mb: rendererMB, pct: Math.round(pct * 100) })
           }).show();
         }
       } else if (level === 'green') {
@@ -279,16 +285,15 @@ function attachCrashRecovery(win) {
       // Smetti di ricaricare a vuoto e chiedi all'utente.
       const choice = dialog.showMessageBoxSync(win, {
         type: 'warning',
-        buttons: ['Riprova', 'Esci'],
+        buttons: [t('crash.retry'), t('crash.quit')],
         defaultId: 0,
         cancelId: 1,
-        title: 'La pagina continua a crashare',
-        message: 'L\'IDE è andato in crash più volte di seguito.',
-        detail:
-          `Motivo ultimo crash: ${details.reason}.\n\n` +
-          `Possibili cause: memory leak della pagina, oppure tetto RAM ` +
-          `troppo basso (attuale: ${config.maxOldSpaceSize} MB).\n\n` +
-          `Puoi alzare il limite da  File ▸ Apri configurazione  e riavviare l'app.`
+        title: t('crash.title'),
+        message: t('crash.message'),
+        detail: t('crash.detail', {
+          reason: details.reason,
+          cap: config.maxOldSpaceSize
+        })
       });
       recentCrashes = 0;
       if (choice === 0) {
@@ -304,12 +309,12 @@ function attachCrashRecovery(win) {
     if (win.isDestroyed()) return;
     const choice = dialog.showMessageBoxSync(win, {
       type: 'warning',
-      buttons: ['Aspetta', 'Ricarica'],
+      buttons: [t('unresponsive.wait'), t('unresponsive.reload')],
       defaultId: 0,
       cancelId: 0,
-      title: 'La pagina non risponde',
-      message: 'L\'IDE ha smesso di rispondere.',
-      detail: 'Puoi aspettare che si riprenda oppure ricaricare la pagina.'
+      title: t('unresponsive.title'),
+      message: t('unresponsive.message'),
+      detail: t('unresponsive.detail')
     });
     if (choice === 1 && !win.isDestroyed()) win.reload();
   });
@@ -387,10 +392,10 @@ function validateIncoming(incoming) {
   const warnPct = Number(incoming.warnPct);
   const alertPct = Number(incoming.alertPct);
 
-  if (!/^https?:\/\//i.test(url)) return { ok: false, error: 'URL non valido.' };
-  if (!(ram >= 1024 && ram <= 14336)) return { ok: false, error: 'Limite RAM fuori range.' };
+  if (!/^https?:\/\//i.test(url)) return { ok: false, error: t('error.url') };
+  if (!(ram >= 1024 && ram <= 14336)) return { ok: false, error: t('error.ram') };
   if (!(warnPct > 0 && alertPct < 1 && warnPct < alertPct)) {
-    return { ok: false, error: 'Soglie non valide.' };
+    return { ok: false, error: t('error.thresholds') };
   }
   return { ok: true, url, ram, warnPct, alertPct };
 }
@@ -403,11 +408,11 @@ function openSettings() {
   }
   settingsWindow = new BrowserWindow({
     width: 480,
-    height: 470,
+    height: 560,   // spazio anche per il selettore di lingua
     resizable: false,
     minimizable: false,
     maximizable: false,
-    title: 'Impostazioni',
+    title: t('window.settings'),
     parent: mainWindow || undefined,
     modal: !!mainWindow,
     webPreferences: {
@@ -427,7 +432,9 @@ ipcMain.handle('settings:get', () => ({
   url: config.url,
   maxOldSpaceSize: config.maxOldSpaceSize,
   warnPct: config.warnPct,
-  alertPct: config.alertPct
+  alertPct: config.alertPct,
+  language: config.language || 'auto',
+  languages: i18n.options()
 }));
 
 ipcMain.handle('settings:save', (_event, incoming) => {
@@ -444,7 +451,15 @@ ipcMain.handle('settings:save', (_event, incoming) => {
     config.maxOldSpaceSize = v.ram;   // applicato al prossimo avvio (flag V8)
     config.warnPct = v.warnPct;       // applicate subito dal monitor
     config.alertPct = v.alertPct;
+    // Se il form non manda la lingua, non toccarla (altrimenti la si
+    // riporterebbe a 'auto' a ogni salvataggio).
+    const langChanged = incoming.language === undefined
+      ? false
+      : applyLanguage(incoming.language);
     saveConfig();
+
+    // Lingua: si applica subito a menu e finestre, senza riavvio.
+    if (langChanged) broadcastLanguage();
 
     // URL: ricarica subito la pagina sul nuovo indirizzo.
     if (urlChanged && mainWindow && !mainWindow.isDestroyed()) {
@@ -465,7 +480,9 @@ ipcMain.handle('launcher:get', () => ({
   alertPct: config.alertPct,
   playlist: !!config.playlist,
   loginSound: LOGIN_SOUND,        // cracktro suonato dalla landing
-  hasPlaylist: PLAYLIST.length > 0
+  hasPlaylist: PLAYLIST.length > 0,
+  language: config.language || 'auto',
+  languages: i18n.options()
 }));
 
 ipcMain.handle('launcher:start', (_event, incoming) => {
@@ -517,26 +534,65 @@ ipcMain.handle('app:relaunch', () => {
   app.exit(0);
 });
 
+// --- i18n --------------------------------------------------
+// I renderer non leggono il filesystem: ricevono il catalogo dal main.
+// Sincrono perché il preload lo richiede prima del primo paint.
+ipcMain.on('i18n:sync', (event) => {
+  event.returnValue = { lang: i18n.getLanguage(), strings: i18n.strings() };
+});
+
+// Ritraduce tutto ciò che è già a schermo: menu applicativo (ricostruito) e
+// finestre aperte (che riapplicano le stringhe in place, senza ricaricarsi).
+function broadcastLanguage() {
+  const payload = { lang: i18n.getLanguage(), strings: i18n.strings() };
+  buildMenu();
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send('i18n:changed', payload);
+  }
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.setTitle(i18n.t('window.settings'));
+  }
+}
+
+// Applica una preferenza di lingua ('auto' o un codice) e la persiste.
+// Ritorna true se la lingua effettiva è cambiata.
+function applyLanguage(preference) {
+  const pref = preference === 'auto' || i18n.SUPPORTED.includes(preference)
+    ? preference
+    : 'auto';
+  const before = i18n.getLanguage();
+  config.language = pref;
+  i18n.setLanguage(i18n.resolve(pref, app.getLocale()));
+  return i18n.getLanguage() !== before;
+}
+
+ipcMain.handle('i18n:set', (_event, preference) => {
+  const changed = applyLanguage(preference);
+  saveConfig();
+  if (changed) broadcastLanguage();
+  return { ok: true, lang: i18n.getLanguage() };
+});
+
 function buildMenu() {
   const template = [
     { role: 'appMenu' },
     {
-      label: 'File',
+      label: t('menu.file'),
       submenu: [
         {
           // #4: finestra grafica per modificare i parametri.
-          label: 'Impostazioni…',
+          label: t('menu.settings'),
           accelerator: 'CmdOrCtrl+,',
           click: () => openSettings()
         },
         { type: 'separator' },
         {
           // #1: apre il config.json grezzo nell'editor di sistema (avanzato).
-          label: 'Apri configurazione (file)…',
+          label: t('menu.openConfig'),
           click: () => { shell.openPath(configPath); }
         },
         {
-          label: 'Mostra cartella configurazione',
+          label: t('menu.showConfigFolder'),
           click: () => { shell.showItemInFolder(configPath); }
         },
         { type: 'separator' },
@@ -545,7 +601,7 @@ function buildMenu() {
     },
     { role: 'editMenu' },
     {
-      label: 'Vista',
+      label: t('menu.view'),
       submenu: [
         { role: 'reload' },
         { role: 'forceReload' },
@@ -559,12 +615,12 @@ function buildMenu() {
       ]
     },
     {
-      label: 'HUD',
+      label: t('menu.hud'),
       submenu: [
         {
           // Di default l'HUD è click-through e non blocca l'IDE sottostante.
           // Attivalo solo quando vuoi usare i controlli audio dell'HUD.
-          label: 'HUD interattivo (permette i clic sull’HUD)',
+          label: t('menu.hudInteractive'),
           type: 'checkbox',
           checked: hudInteractive,
           accelerator: 'CmdOrCtrl+Shift+H',
@@ -573,10 +629,10 @@ function buildMenu() {
       ]
     },
     {
-      label: 'Audio',
+      label: t('menu.audio'),
       submenu: [
         {
-          label: 'Playlist neon',
+          label: t('menu.playlist'),
           type: 'checkbox',
           checked: playlistEnabled,
           enabled: PLAYLIST.length > 0,
@@ -588,7 +644,7 @@ function buildMenu() {
           }
         },
         {
-          label: 'Brano successivo',
+          label: t('menu.nextTrack'),
           accelerator: 'CmdOrCtrl+Right',
           enabled: PLAYLIST.length > 0,
           click: () => sendPlaylist('next')
@@ -629,6 +685,10 @@ function enableCrossOriginIsolation() {
 }
 
 app.whenReady().then(() => {
+  // La lingua di sistema è nota solo a app pronta, quindi si risolve qui —
+  // prima di costruire il menu e di aprire qualsiasi finestra.
+  i18n.setLanguage(i18n.resolve(config.language, app.getLocale()));
+
   enableCrossOriginIsolation();
   buildMenu();
   startMemoryMonitor(); // il monitor è inerte finché non esiste mainWindow
