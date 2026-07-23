@@ -27,6 +27,68 @@ The HUD displays:
 - **Playlist toggle** — Activate the chiptune soundtrack during your session
 - **Real-time memory meter** — Updates every 2 seconds with RSS usage and alert notifications
 
+## Installation & Quick Start
+
+### Run from Source (Bun)
+
+**1. Install Bun**
+
+This project uses [Bun](https://bun.sh) as its package manager and runner. Install it with:
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
+(Windows: `powershell -c "irm bun.sh/install.ps1 | iex"`. See the [Bun installation docs](https://bun.sh/docs/installation) for Homebrew, npm, and other options.)
+
+Verify the install:
+
+```bash
+bun --version
+```
+
+**2. Install dependencies**
+
+From the project root:
+
+```bash
+bun install
+```
+
+This pulls down Electron and electron-builder. If the Electron binary doesn't download, allow its postinstall script with `bun pm trust electron` and re-run `bun install`.
+
+**3. Launch the app**
+
+```bash
+bun run start
+```
+
+The Keygen launcher opens — paste your ServiceNow instance URL, set the heap cap, and press **START**.
+
+To package a distributable instead of running from source:
+
+```bash
+bun run dist        # .dmg (macOS)
+```
+
+### macOS
+
+1. Download `ServiceNow IDE-1.0.0-arm64.dmg` (Apple Silicon) or `-x64.dmg` (Intel)
+2. Mount the DMG and drag **ServiceNow IDE** to `/Applications`
+3. Launch from Applications or Spotlight (Cmd+Space → "ServiceNow IDE")
+4. Paste your instance URL and press START
+
+### Windows / Linux
+
+Currently, builds are provided for macOS only. To build for your platform:
+
+```bash
+bun install
+bun run dist
+```
+
+Outputs will appear in `dist/` as `.exe` (Windows) or `.AppImage` (Linux).
+
 ## How Instance Management Works
 
 ### First Launch
@@ -100,41 +162,20 @@ Tracks live in `assets/playlist/` inside the app. To add your own chiptune:
 3. Drop in `.mp3` files — they'll appear alphabetically in the player
 4. Restart the app; the new tracks load automatically
 
-(Or edit and rebuild the app using `npm run dist` if you're developing.)
-
-## Installation & Quick Start
-
-### macOS
-
-1. Download `ServiceNow IDE-1.0.0-arm64.dmg` (Apple Silicon) or `-x64.dmg` (Intel)
-2. Mount the DMG and drag **ServiceNow IDE** to `/Applications`
-3. Launch from Applications or Spotlight (Cmd+Space → "ServiceNow IDE")
-4. Paste your instance URL and press START
-
-### Windows / Linux
-
-Currently, builds are provided for macOS only. To build for your platform:
-
-```bash
-npm install
-npm run dist
-```
-
-Outputs will appear in `dist/` as `.exe` (Windows) or `.AppImage` (Linux).
+(Or edit and rebuild the app using `bun run dist` if you're developing.)
 
 ## Development
 
 ### Requirements
 
-- Node.js 16+
-- npm
+- [Bun](https://bun.sh) 1.0+ (or Node.js 16+ with npm)
 
 ### Build the App
 
 ```bash
-npm install
-npm run start       # Run in development mode
-npm run dist        # Package as .dmg (macOS)
+bun install
+bun run start       # Run in development mode
+bun run dist        # Package as .dmg (macOS)
 ```
 
 ### Key Files
