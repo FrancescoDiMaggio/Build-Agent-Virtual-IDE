@@ -55,7 +55,7 @@ From the project root:
 bun install
 ```
 
-This pulls down Electron and electron-builder. If the Electron binary doesn't download, allow its postinstall script with `bun pm trust electron` and re-run `bun install`.
+This pulls down Electron and electron-builder. Electron's platform binary isn't fetched at install time — it downloads automatically the first time you run the app, so the first `bun run start` takes a little longer.
 
 **3. Launch the app**
 
