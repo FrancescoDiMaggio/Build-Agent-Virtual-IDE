@@ -90,7 +90,7 @@ The HUD is a small, **always-on-top** overlay in the bottom-right corner of your
 
 By default, the HUD is **click-through** — clicks pass through to the IDE, so you don't accidentally hit it. If you want to use the audio controls:
 
-- **HUD → HUD interattivo** (Cmd+Shift+H) — Toggles mouse capture so you can click the HUD buttons
+- **HUD → Interactive HUD** (Cmd+Shift+H) — Toggles mouse capture so you can click the HUD buttons
 - **Turn it off** when done so clicks go back to the IDE
 
 ### Memory Alerts
@@ -102,13 +102,13 @@ When the IDE reaches **red** (≥ ALERT %), you get a **macOS notification** war
 ### Enable / Disable
 
 - **File → Settings** → Check "Enable chiptune playlist" at first launch (applies on START)
-- Or at runtime: **Audio → Playlist neon** (checkbox)
+- Or at runtime: **Audio → Neon playlist** (checkbox)
   - Menu updates in real-time: check to play, uncheck to pause
 
 ### Play / Pause / Skip
 
-- **Audio → Playlist neon** — Toggle play/pause
-- **Audio → Brano successivo** — Skip to next track (Cmd+Right)
+- **Audio → Neon playlist** — Toggle play/pause
+- **Audio → Next track** — Skip to next track (Cmd+Right)
 - **HUD controls** — If the HUD is interactive (Cmd+Shift+H), click the **▶** button to play/pause and drag the volume slider
 
 ### Customize the Soundtrack
