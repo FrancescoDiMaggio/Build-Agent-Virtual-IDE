@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
+<html>
 <head>
   <meta charset="utf-8" />
   <style>
@@ -67,7 +67,9 @@
       font-weight: 700;
       letter-spacing: 3px;
       line-height: 1.05;
-      margin-top: 4px;
+      /* lascia sopra una riga libera per il selettore lingua e l'indicatore
+         audio, che sono posizionati in assoluto agli angoli */
+      margin-top: 24px;
     }
     .logo .crew {
       font-size: 11px;
@@ -203,48 +205,62 @@
     }
     #snd .bars { display: inline-block; }
     #snd.off { color: rgba(0,240,255,0.4); text-shadow: none; }
+
+    /* ---- selettore lingua ---- */
+    #lang {
+      position: absolute; top: 12px; left: 16px; z-index: 20;
+      font-family: inherit; font-size: 10px; letter-spacing: 1px;
+      padding: 2px 4px;
+      background: rgba(0, 20, 28, 0.7);
+      border: 1px solid rgba(0,240,255,0.5);
+      border-radius: 0;
+      color: var(--cyan);
+      cursor: pointer;
+    }
+    #lang:focus { outline: none; border-color: var(--magenta); }
   </style>
 </head>
 <body>
-  <div id="snd" title="Attiva/disattiva la musica">♪ <span class="bars">CHIPTUNE</span></div>
+  <select id="lang" data-i18n-title="launcher.language"></select>
+  <div id="snd" data-i18n-title="launcher.sound">♪ <span class="bars">CHIPTUNE</span></div>
 
   <div class="wrap">
     <div class="logo">
-      <div class="crew">— NEON DIVISION presents —</div>
+      <div class="crew" data-i18n="launcher.crew"></div>
       <div class="title">HEAP·BOOSTER</div>
-      <div class="sub">V8 MEMORY OVERCLOCK · KEYGEN</div>
+      <div class="sub" data-i18n="launcher.sub"></div>
     </div>
 
     <div class="rule"></div>
 
     <div class="fields">
-      <label for="url">TARGET URL</label>
-      <input id="url" type="text" placeholder="https://your-instance.example.com/..." autofocus />
+      <label for="url" data-i18n="launcher.url"></label>
+      <input id="url" type="text" data-i18n-placeholder="launcher.urlPlaceholder" autofocus />
 
-      <label for="ram">V8 HEAP CAP [ MB ]</label>
+      <label for="ram" data-i18n="launcher.ram"></label>
       <input id="ram" type="number" min="1024" max="14336" step="256" />
 
       <div class="row">
         <div>
-          <label for="warn">WARN %</label>
+          <label for="warn" data-i18n="launcher.warn"></label>
           <input id="warn" type="number" min="5" max="95" step="5" />
         </div>
         <div>
-          <label for="alert">ALERT %</label>
+          <label for="alert" data-i18n="launcher.alert"></label>
           <input id="alert" type="number" min="10" max="98" step="5" />
         </div>
       </div>
 
       <label class="check" id="plLabel" for="playlist">
         <input id="playlist" type="checkbox" />
-        <span>RIPRODUCI LA PLAYLIST CHIPTUNE DURANTE L'USO</span>
+        <span data-i18n="launcher.playlist"></span>
       </label>
 
       <div id="err"></div>
     </div>
 
     <div class="actions">
-      <button id="start">START</button>
+      <button id="start" data-i18n="launcher.start"></button>
     </div>
   </div>
 
@@ -253,24 +269,44 @@
   <!-- cracktro music: parte automaticamente all'apertura del launcher -->
   <audio id="cracktro" loop></audio>
 
+  <script src="i18n-renderer.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     const err = $('err');
     const audio = $('cracktro');
     const snd = $('snd');
+    const t = window.i18n.t;
 
-    const GREETZ =
-      'WELCOME TO HEAP·BOOSTER KEYGEN  ///  ' +
-      'imposta TARGET URL e premi START per lanciare il browser dedicato con heap V8 maggiorato  ///  ' +
-      'usa un cap RAM ragionevole: su 16 GB il massimo consigliato e\' 12288 MB  ///  ' +
-      'WARN e ALERT pilotano il semaforo di memoria  ///  ' +
-      'spunta la casella per la playlist chiptune mentre lavori  ///  ' +
-      'greetz to all the sceners keeping the neon alive  ///  stay frosty  ///  ';
+    // Chiave dell'errore a schermo, per ritradurlo al cambio lingua.
+    let errKey = '';
+    function showError(key) {
+      errKey = key;
+      err.textContent = key ? t(key) : '';
+    }
 
-    $('scrollText').textContent = GREETZ;
+    $('scrollText').textContent = t('launcher.greetz');
+
+    // Il cambio lingua non ricarica la pagina (la cracktro continua a suonare):
+    // ritraduce lo scroller e l'eventuale errore, che apply() non copre.
+    window.i18n.onChange(() => {
+      $('scrollText').textContent = t('launcher.greetz');
+      if (errKey) showError(errKey);
+    });
+
+    // 'auto' + una voce per lingua, ciascuna nel proprio nome nativo.
+    function fillLanguages(languages, selected) {
+      $('lang').add(new Option('AUTO', 'auto'));
+      for (const l of languages) $('lang').add(new Option(l.name, l.code));
+      $('lang').value = selected;
+    }
+
+    $('lang').addEventListener('change', () => {
+      window.launcherApi.setLanguage($('lang').value);
+    });
 
     async function load() {
       const c = await window.launcherApi.get();
+      fillLanguages(c.languages, c.language);
       $('url').value = c.url || '';
       $('ram').value = c.maxOldSpaceSize;
       $('warn').value = Math.round(c.warnPct * 100);
@@ -311,15 +347,15 @@
     });
 
     async function start() {
-      err.textContent = '';
+      showError('');
       const url = $('url').value.trim();
       const ram = parseInt($('ram').value, 10);
       const warn = parseInt($('warn').value, 10);
       const alert = parseInt($('alert').value, 10);
 
-      if (!/^https?:\/\//i.test(url)) { err.textContent = '! TARGET URL NON VALIDO (http/https)'; return; }
-      if (!(ram >= 1024 && ram <= 14336)) { err.textContent = '! HEAP CAP FUORI RANGE (1024-14336)'; return; }
-      if (!(warn >= 5 && alert <= 98 && warn < alert)) { err.textContent = '! WARN DEVE ESSERE < ALERT'; return; }
+      if (!/^https?:\/\//i.test(url)) { showError('launcher.errUrl'); return; }
+      if (!(ram >= 1024 && ram <= 14336)) { showError('launcher.errRam'); return; }
+      if (!(warn >= 5 && alert <= 98 && warn < alert)) { showError('launcher.errThresholds'); return; }
 
       $('start').disabled = true;
       const res = await window.launcherApi.start({
@@ -330,7 +366,9 @@
       // sparisce); altrimenti apre la finestra regolare e chiude la landing.
       if (res && !res.ok) {
         $('start').disabled = false;
-        err.textContent = '! ' + (res.error || 'ERRORE IN AVVIO').toUpperCase();
+        // L'errore dal main arriva già tradotto.
+        errKey = '';
+        err.textContent = '! ' + (res.error || t('launcher.errStart')).toUpperCase();
       }
     }
 
